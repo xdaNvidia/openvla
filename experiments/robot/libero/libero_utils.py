@@ -8,6 +8,7 @@ import numpy as np
 import tensorflow as tf
 from libero.libero import get_libero_path
 from libero.libero.envs import OffScreenRenderEnv
+from libero.libero.envs.env_wrapper import ControlEnv
 
 from experiments.robot.robot_utils import (
     DATE,
@@ -15,12 +16,38 @@ from experiments.robot.robot_utils import (
 )
 
 
-def get_libero_env(task, model_family, resolution=256):
-    """Initializes and returns the LIBERO environment, along with the task description."""
+def get_libero_env(task, model_family, resolution=256, use_renderer=False):
+    """
+    Initializes and returns the LIBERO environment, along with the task description.
+    
+    Args:
+        task: LIBERO task object
+        model_family: Model family name
+        resolution: Image resolution
+        use_renderer: If True, enables real-time GUI visualization. If False, uses off-screen rendering.
+    """
     task_description = task.language
     task_bddl_file = os.path.join(get_libero_path("bddl_files"), task.problem_folder, task.bddl_file)
     env_args = {"bddl_file_name": task_bddl_file, "camera_heights": resolution, "camera_widths": resolution}
-    env = OffScreenRenderEnv(**env_args)
+    
+    if use_renderer:
+        # Use ControlEnv with both renderers enabled for real-time visualization
+        # Note: Camera observations require offscreen renderer, so we enable both
+        env_args["has_renderer"] = True
+        env_args["has_offscreen_renderer"] = True  # Required for camera observations
+        env = ControlEnv(**env_args)
+        # Add render method that delegates to the underlying robosuite environment
+        def render():
+            if hasattr(env.env, 'render'):
+                return env.env.render()
+            elif hasattr(env.env, 'viewer') and env.env.viewer is not None:
+                # Update viewer if it exists
+                env.env.viewer.render()
+        env.render = render
+    else:
+        # Use OffScreenRenderEnv for headless operation (saves videos only)
+        env = OffScreenRenderEnv(**env_args)
+    
     env.seed(0)  # IMPORTANT: seed seems to affect object positions even when using fixed initial state
     return env, task_description
 

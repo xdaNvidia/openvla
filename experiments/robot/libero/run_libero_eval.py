@@ -11,10 +11,14 @@ Usage:
         --pretrained_checkpoint <CHECKPOINT_PATH> \
         --task_suite_name [ libero_spatial | libero_object | libero_goal | libero_10 | libero_90 ] \
         --center_crop [ True | False ] \
+        --use_renderer [ True | False ] \
         --run_id_note <OPTIONAL TAG TO INSERT INTO RUN ID FOR LOGGING> \
         --use_wandb [ True | False ] \
         --wandb_project <PROJECT> \
         --wandb_entity <ENTITY>
+    
+    # Enable real-time visualization:
+    --use_renderer True  # Opens a GUI window showing the simulation in real-time
 """
 
 import os
@@ -71,6 +75,7 @@ class GenerateConfig:
     task_suite_name: str = "libero_spatial"          # Task suite. Options: libero_spatial, libero_object, libero_goal, libero_10, libero_90
     num_steps_wait: int = 10                         # Number of steps to wait for objects to stabilize in sim
     num_trials_per_task: int = 50                    # Number of rollouts per task
+    use_renderer: bool = False                       # Enable real-time GUI visualization (opens a window)
 
     #################################################################################################################
     # Utils
@@ -153,7 +158,7 @@ def eval_libero(cfg: GenerateConfig) -> None:
         initial_states = task_suite.get_task_init_states(task_id)
 
         # Initialize LIBERO environment and task description
-        env, task_description = get_libero_env(task, cfg.model_family, resolution=256)
+        env, task_description = get_libero_env(task, cfg.model_family, resolution=256, use_renderer=cfg.use_renderer)
 
         # Start episodes
         task_episodes, task_successes = 0, 0
@@ -189,6 +194,8 @@ def eval_libero(cfg: GenerateConfig) -> None:
                     # and we need to wait for them to fall
                     if t < cfg.num_steps_wait:
                         obs, reward, done, info = env.step(get_libero_dummy_action(cfg.model_family))
+                        if cfg.use_renderer:
+                            env.render()  # Update visualization window
                         t += 1
                         continue
 
@@ -226,6 +233,11 @@ def eval_libero(cfg: GenerateConfig) -> None:
 
                     # Execute action in environment
                     obs, reward, done, info = env.step(action.tolist())
+                    
+                    # Update visualization window if renderer is enabled
+                    if cfg.use_renderer:
+                        env.render()
+                    
                     if done:
                         task_successes += 1
                         total_successes += 1
@@ -267,6 +279,10 @@ def eval_libero(cfg: GenerateConfig) -> None:
                     f"num_episodes/{task_description}": task_episodes,
                 }
             )
+        
+        # Close environment if renderer is enabled (cleanup GUI window)
+        if cfg.use_renderer:
+            env.close()
 
     # Save local log file
     log_file.close()
