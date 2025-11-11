@@ -154,3 +154,7 @@ wandb/
 
 # Experiment logs
 experiments/logs/
+
+# Training runs and checkpoints
+runs/
+adapter-tmp/

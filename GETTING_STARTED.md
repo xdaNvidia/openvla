@@ -321,6 +321,118 @@ After running the quick test (2 trials per task on libero_spatial):
 
 ---
 
+## 🎓 Fine-tuning on Custom Datasets
+
+You can fine-tune OpenVLA on your own datasets using LoRA (Low-Rank Adaptation) for parameter-efficient training.
+
+### Prerequisites for Fine-tuning
+
+1. **Dataset Format**: Your dataset should be in RLDS (Reinforcement Learning Datasets) format following the Open X-Embodiment standard
+2. **GPU Memory**: At least 48GB GPU memory recommended (or use smaller batch sizes)
+3. **Disk Space**: Ensure enough space for model checkpoints (~30GB per checkpoint)
+
+### Quick Start: Fine-tune on LIBERO Dataset
+
+Here's an example of fine-tuning on a LIBERO dataset:
+
+```bash
+# Fine-tune OpenVLA on LIBERO Spatial dataset
+python -u -m torch.distributed.run \
+  --standalone \
+  --nnodes 1 \
+  --nproc-per-node 1 \
+  vla-scripts/finetune.py \
+  --vla_path "openvla/openvla-7b" \
+  --data_root_dir ./modified_libero_rlds \
+  --dataset_name libero_spatial_no_noops \
+  --run_root_dir ./runs \
+  --adapter_tmp_dir ./adapter-tmp \
+  --lora_rank 32 \
+  --batch_size 2 \
+  --grad_accumulation_steps 4 \
+  --learning_rate 5e-4 \
+  --max_steps 200000 \
+  --image_aug True \
+  --save_steps 5000
+```
+
+**Note**: By default, Weights & Biases logging is disabled (`use_wandb=False`). To enable W&B logging, add `--use_wandb True --wandb_project <PROJECT> --wandb_entity <ENTITY>`.
+
+### Fine-tuning Parameters Explained
+
+- `--vla_path`: Pre-trained model to start from (default: "openvla/openvla-7b")
+- `--data_root_dir`: Path to your RLDS dataset directory
+- `--dataset_name`: Name of the dataset to use for fine-tuning
+- `--run_root_dir`: Directory to save checkpoints and logs
+- `--adapter_tmp_dir`: Temporary directory for LoRA adapter weights
+- `--lora_rank`: Rank of LoRA weight matrix (default: 32, higher = more capacity but slower)
+- `--batch_size`: Training batch size per GPU (adjust based on GPU memory)
+- `--grad_accumulation_steps`: Gradient accumulation steps (effective batch size = batch_size × grad_accumulation_steps)
+- `--learning_rate`: Learning rate for fine-tuning (default: 5e-4)
+- `--max_steps`: Maximum training steps (default: 200,000)
+- `--image_aug`: Whether to use image augmentations (default: True)
+- `--save_steps`: Save checkpoint every N steps (default: 5000)
+- `--use_wandb`: Enable Weights & Biases logging (default: False)
+
+### Memory Requirements
+
+- **48GB GPU**: `batch_size=12` (without gradient accumulation)
+- **80GB GPU**: `batch_size=24` (without gradient accumulation)
+- **24GB GPU**: `batch_size=2` with `grad_accumulation_steps=4` (effective batch size = 8)
+- **Low Memory**: Add `--use_quantization True` for 4-bit quantization (reduces performance)
+
+### Multi-GPU Training
+
+To use multiple GPUs, adjust `--nproc-per-node`:
+
+```bash
+# Example: Use 4 GPUs
+python -u -m torch.distributed.run \
+  --standalone \
+  --nnodes 1 \
+  --nproc-per-node 4 \
+  vla-scripts/finetune.py \
+  --vla_path "openvla/openvla-7b" \
+  --data_root_dir ./modified_libero_rlds \
+  --dataset_name libero_spatial_no_noops \
+  --batch_size 6 \
+  --grad_accumulation_steps 4 \
+  --learning_rate 5e-4 \
+  --max_steps 200000 \
+  --image_aug True \
+  --save_steps 5000
+```
+
+### Monitoring Training
+
+Training progress will be logged to:
+- **Console**: Real-time loss, accuracy, and L1 metrics
+- **Checkpoints**: Saved to `./runs/<experiment_id>/`
+- **Weights & Biases** (optional): Add `--use_wandb True` to enable
+
+### Using Your Fine-tuned Model
+
+After fine-tuning, your model checkpoint will be saved in `./runs/<experiment_id>/`. To use it for evaluation:
+
+```bash
+python3 experiments/robot/libero/run_libero_eval.py \
+  --model_family openvla \
+  --pretrained_checkpoint ./runs/<experiment_id> \
+  --task_suite_name libero_spatial \
+  --center_crop True \
+  --num_trials_per_task 5
+```
+
+### Tips for Fine-tuning
+
+- **Start small**: Test with `--max_steps 1000` first to verify everything works
+- **Monitor loss**: Loss should decrease steadily; if it plateaus, try adjusting learning rate
+- **Save frequently**: Use `--save_steps 1000` for initial testing, then increase to 5000 for full runs
+- **Dataset quality**: Better quality demonstration data = better performance
+- **Image augmentation**: Keep `--image_aug True` to improve generalization
+
+---
+
 ## 📚 Next Steps
 
 1. **Explore the code**: Check `experiments/robot/libero/run_libero_eval.py` to understand how evaluation works
