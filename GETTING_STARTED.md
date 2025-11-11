@@ -25,6 +25,10 @@ conda activate openvla
 # Install PyTorch (adjust CUDA version if needed)
 conda install pytorch torchvision torchaudio pytorch-cuda=12.4 -c pytorch -c nvidia -y
 
+# IMPORTANT: Fix for PyTorch import errors (iJIT_NotifyEvent)
+# Downgrade MKL/Intel OpenMP to compatible versions
+conda install intel-openmp=2023.1.0 mkl=2023.1.0 -y
+
 # Install OpenVLA
 cd /home/gear/Projects/openvla
 pip install -e .
@@ -57,6 +61,7 @@ python3 check_setup.py
 
 ```bash
 # This will download the model checkpoint (~30GB) on first run
+# Note: If you encounter LIBERO import errors, use the PYTHONPATH workaround below
 python3 experiments/robot/libero/run_libero_eval.py \
   --model_family openvla \
   --pretrained_checkpoint openvla/openvla-7b-finetuned-libero-spatial \
@@ -69,6 +74,18 @@ python3 experiments/robot/libero/run_libero_eval.py \
 ```bash
 # Add --use_renderer True to see the simulation in real-time
 python3 experiments/robot/libero/run_libero_eval.py \
+  --model_family openvla \
+  --pretrained_checkpoint openvla/openvla-7b-finetuned-libero-spatial \
+  --task_suite_name libero_spatial \
+  --center_crop True \
+  --num_trials_per_task 2 \
+  --use_renderer True
+```
+
+**If you encounter "ModuleNotFoundError: No module named 'libero'" errors:**
+```bash
+# Use PYTHONPATH workaround
+PYTHONPATH=/home/gear/Projects/LIBERO:$PYTHONPATH python3 experiments/robot/libero/run_libero_eval.py \
   --model_family openvla \
   --pretrained_checkpoint openvla/openvla-7b-finetuned-libero-spatial \
   --task_suite_name libero_spatial \
@@ -110,6 +127,10 @@ conda install pytorch torchvision torchaudio pytorch-cuda=12.4 -c pytorch -c nvi
 
 # OR CPU-only (slower, but works)
 # conda install pytorch torchvision torchaudio cpuonly -c pytorch -y
+
+# IMPORTANT: Fix for PyTorch import errors (iJIT_NotifyEvent symbol not found)
+# If you encounter "undefined symbol: iJIT_NotifyEvent" errors, run:
+conda install intel-openmp=2023.1.0 mkl=2023.1.0 -y
 ```
 
 ### Step 3: Install OpenVLA Package
@@ -244,8 +265,20 @@ This will:
   huggingface-cli login
   ```
 
-### Issue: LIBERO import errors
-- **Solution**: Make sure LIBERO is installed in editable mode: `pip install -e .` from LIBERO directory
+### Issue: PyTorch import error - "undefined symbol: iJIT_NotifyEvent"
+- **Solution**: This is caused by incompatible Intel OpenMP/MKL versions. Fix with:
+  ```bash
+  conda activate openvla
+  conda install intel-openmp=2023.1.0 mkl=2023.1.0 -y
+  ```
+- **Root cause**: Newer versions of Intel OpenMP (2025.x) have compatibility issues with certain PyTorch builds
+
+### Issue: LIBERO import errors ("ModuleNotFoundError: No module named 'libero'")
+- **Solution 1**: Make sure LIBERO is installed in editable mode: `pip install -e .` from LIBERO directory
+- **Solution 2**: If editable install doesn't work, use PYTHONPATH workaround:
+  ```bash
+  PYTHONPATH=/home/gear/Projects/LIBERO:$PYTHONPATH python3 experiments/robot/libero/run_libero_eval.py [args]
+  ```
 
 ### Issue: NumPy version conflict
 - **Solution**: TensorFlow requires numpy<2.0. Fix with:
@@ -270,12 +303,21 @@ This will:
 
 ## 💡 Tips
 
-- **First run**: Use `--num_trials_per_task 2` for quick testing
-- **Full evaluation**: Use `--num_trials_per_task 50` (default, takes longer)
+- **First run**: Use `--num_trials_per_task 2` for quick testing (~10 minutes)
+- **Full evaluation**: Use `--num_trials_per_task 50` (default, takes ~4-5 hours)
 - **Real-time visualization**: Add `--use_renderer True` to see the simulation in a GUI window
 - **Low memory**: Add `--load_in_8bit True` for 8-bit quantization
 - **Watch videos**: Check `./rollouts/` directory after evaluation
+- **Expected performance**: The model achieves ~80-90% success rate on libero_spatial tasks
 - **Note**: Real-time visualization requires a display/GUI environment. If running over SSH, use X11 forwarding: `ssh -X user@host`
+
+## 🎯 Evaluation Results
+
+After running the quick test (2 trials per task on libero_spatial):
+- **Total episodes**: 20 (2 trials × 10 tasks)
+- **Expected success rate**: ~80-90%
+- **Rollout videos**: Saved to `./rollouts/<DATE>/`
+- **Logs**: Saved to `./experiments/logs/`
 
 ---
 
