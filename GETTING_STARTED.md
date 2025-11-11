@@ -410,18 +410,82 @@ Training progress will be logged to:
 - **Checkpoints**: Saved to `./runs/<experiment_id>/`
 - **Weights & Biases** (optional): Add `--use_wandb True` to enable
 
-### Using Your Fine-tuned Model
+### Evaluating Your Fine-tuned Model
 
-After fine-tuning, your model checkpoint will be saved in `./runs/<experiment_id>/`. To use it for evaluation:
+After fine-tuning, your model checkpoint will be saved in `./runs/<experiment_id>/`.
 
+#### Finding Your Model Path
+
+The experiment ID is automatically generated based on your training parameters:
+```
+<model>+<dataset>+b<batch_size>+lr-<learning_rate>+lora-r<rank>+dropout-<dropout>--image_aug
+```
+
+For the example above, the path would be:
+```
+./runs/openvla-7b+libero_spatial_no_noops+b8+lr-0.0005+lora-r32+dropout-0.0--image_aug/
+```
+
+**Quick way to find your model:**
+```bash
+# List all trained models (most recent first)
+ls -lt ./runs/
+
+# Get the most recent model directory
+ls -t ./runs/ | head -1
+```
+
+#### Evaluation Commands
+
+**Quick test (2 trials per task):**
 ```bash
 python3 experiments/robot/libero/run_libero_eval.py \
   --model_family openvla \
-  --pretrained_checkpoint ./runs/<experiment_id> \
+  --pretrained_checkpoint ./runs/openvla-7b+libero_spatial_no_noops+b8+lr-0.0005+lora-r32+dropout-0.0--image_aug \
   --task_suite_name libero_spatial \
   --center_crop True \
-  --num_trials_per_task 5
+  --num_trials_per_task 2
 ```
+
+**Full evaluation (50 trials per task):**
+```bash
+python3 experiments/robot/libero/run_libero_eval.py \
+  --model_family openvla \
+  --pretrained_checkpoint ./runs/openvla-7b+libero_spatial_no_noops+b8+lr-0.0005+lora-r32+dropout-0.0--image_aug \
+  --task_suite_name libero_spatial \
+  --center_crop True \
+  --num_trials_per_task 50
+```
+
+**With real-time visualization:**
+```bash
+python3 experiments/robot/libero/run_libero_eval.py \
+  --model_family openvla \
+  --pretrained_checkpoint ./runs/openvla-7b+libero_spatial_no_noops+b8+lr-0.0005+lora-r32+dropout-0.0--image_aug \
+  --task_suite_name libero_spatial \
+  --center_crop True \
+  --num_trials_per_task 50 \
+  --use_renderer True
+```
+
+**Using the most recent checkpoint dynamically:**
+```bash
+# Automatically use the most recent trained model
+CHECKPOINT=$(ls -t ./runs/ | head -1)
+python3 experiments/robot/libero/run_libero_eval.py \
+  --model_family openvla \
+  --pretrained_checkpoint ./runs/$CHECKPOINT \
+  --task_suite_name libero_spatial \
+  --center_crop True \
+  --num_trials_per_task 50
+```
+
+#### What to Expect
+
+- **Rollout videos**: Saved to `./rollouts/<DATE>/`
+- **Evaluation logs**: Saved to `./experiments/logs/`
+- **Success rate**: Printed to console and logged
+- **Expected performance**: Fine-tuned models should achieve 80-90%+ success rate on libero_spatial
 
 ### Tips for Fine-tuning
 
