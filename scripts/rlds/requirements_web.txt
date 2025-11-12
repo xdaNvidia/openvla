@@ -1,0 +1,7 @@
+# Requirements for web-based RLDS viewer
+gradio>=4.0.0
+tensorflow>=2.13.0
+tensorflow-datasets>=4.9.0
+numpy>=1.23.0
+matplotlib>=3.5.0
+Pillow>=9.0.0
