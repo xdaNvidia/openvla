@@ -151,6 +151,7 @@ data/
 # Rollout videos and wandb logs
 rollouts/
 wandb/
+videos/
 
 # Experiment logs
 experiments/logs/
