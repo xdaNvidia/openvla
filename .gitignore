@@ -153,6 +153,9 @@ rollouts/
 wandb/
 videos/
 
+# Modified LIBERO RLDS (separate git repo)
+modified_libero_rlds/
+
 # Experiment logs
 experiments/logs/
 
