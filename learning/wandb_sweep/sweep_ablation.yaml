@@ -1,0 +1,51 @@
+# Ablation study sweep for OpenVLA
+# Goal: Systematically test effect of each component
+# Uses grid search to try all combinations
+#
+# Usage:
+#   wandb sweep learning/sweep_ablation.yaml
+#   wandb agent your-username/openvla/sweep-id
+
+program: vla-scripts/finetune.py
+method: grid  # Try ALL combinations
+metric:
+  name: action_accuracy
+  goal: maximize
+
+parameters:
+  # Fixed parameters (from previous optimal sweep)
+  vla_path:
+    value: "openvla/openvla-7b"
+
+  dataset_name:
+    value: "droid_wipe"
+
+  use_wandb:
+    value: true
+
+  wandb_entity:
+    value: "xda_nvidia"
+
+  max_steps:
+    value: 10000
+
+  learning_rate:
+    value: 0.0005  # Use optimal from previous sweep
+
+  lora_rank:
+    value: 32  # Use optimal from previous sweep
+
+  batch_size:
+    value: 16  # Use optimal from previous sweep
+
+  # Ablation parameters (test all combinations)
+  image_aug:
+    values: [true, false]
+
+  lora_dropout:
+    values: [0.0, 0.1, 0.2]
+
+  grad_accumulation_steps:
+    values: [1, 2]
+
+# Total runs: 2 × 3 × 2 = 12 runs

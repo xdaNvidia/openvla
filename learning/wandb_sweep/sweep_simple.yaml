@@ -1,0 +1,51 @@
+# Simple sweep for OpenVLA fine-tuning
+# Goal: Find best learning rate and LoRA rank
+#
+# Usage:
+#   wandb sweep learning/sweep_simple.yaml
+#   wandb agent your-username/openvla/sweep-id
+
+program: vla-scripts/finetune.py
+method: bayes
+metric:
+  name: action_accuracy
+  goal: maximize
+
+parameters:
+  # Fixed parameters (not searched)
+  vla_path:
+    value: "openvla/openvla-7b"
+
+  dataset_name:
+    value: "droid_wipe"
+
+  use_wandb:
+    value: true
+
+  wandb_entity:
+    value: "xda_nvidia"  # Change to your username
+
+  max_steps:
+    value: 10000  # Shorter for sweep (increase for final training)
+
+  save_steps:
+    value: 5000
+
+  # Parameters to optimize
+  learning_rate:
+    min: 0.0001
+    max: 0.001
+    distribution: log_uniform
+
+  lora_rank:
+    values: [8, 16, 32, 64]
+
+  batch_size:
+    values: [8, 12, 16]
+
+# Early stopping - saves compute by stopping bad runs early
+early_terminate:
+  type: hyperband
+  min_iter: 3   # Evaluate after 3 checkpoints
+  max_iter: 9   # Maximum 9 checkpoints
+  s: 2          # Aggressiveness

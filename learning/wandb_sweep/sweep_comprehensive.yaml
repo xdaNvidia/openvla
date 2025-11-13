@@ -1,0 +1,73 @@
+# Comprehensive sweep for OpenVLA fine-tuning
+# Goal: Optimize all major hyperparameters
+#
+# Usage:
+#   wandb sweep learning/sweep_comprehensive.yaml
+#   wandb agent your-username/openvla/sweep-id
+
+program: vla-scripts/finetune.py
+method: bayes
+metric:
+  name: action_accuracy
+  goal: maximize
+
+parameters:
+  # Fixed parameters
+  vla_path:
+    value: "openvla/openvla-7b"
+
+  dataset_name:
+    value: "droid_wipe"
+
+  use_wandb:
+    value: true
+
+  wandb_entity:
+    value: "xda_nvidia"
+
+  max_steps:
+    value: 20000
+
+  save_steps:
+    value: 5000
+
+  use_lora:
+    value: true
+
+  use_quantization:
+    value: false
+
+  # Core training parameters
+  learning_rate:
+    min: 0.00005
+    max: 0.001
+    distribution: log_uniform
+
+  batch_size:
+    values: [8, 12, 16, 24]
+
+  grad_accumulation_steps:
+    values: [1, 2, 4]
+
+  # LoRA configuration
+  lora_rank:
+    values: [8, 16, 32, 64]
+
+  lora_dropout:
+    min: 0.0
+    max: 0.3
+    distribution: uniform
+
+  # Data augmentation
+  image_aug:
+    values: [true, false]
+
+  shuffle_buffer_size:
+    values: [50000, 100000, 200000]
+
+# Early stopping configuration
+early_terminate:
+  type: hyperband
+  min_iter: 5
+  max_iter: 20
+  s: 2
